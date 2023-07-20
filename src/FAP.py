@@ -64,8 +64,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 @app.post("/sendrq/")
-async def sendrq(desc: str = Form()):
-    response = predict_prob_with_descr(desc)
+async def sendrq(qtty: str = Form(), desc: str = Form()):
+    print(desc, qtty)
+    response = predict_prob_with_descr(desc, int(qtty))
     print(response)
     return {"data": response}
 
