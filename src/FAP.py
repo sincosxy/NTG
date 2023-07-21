@@ -4,9 +4,13 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Form
-import json
+from pydantic import BaseModel
+
+class Item(BaseModel):
+    id: str
 
 #import NLP model
+import requests
 import torch
 import numpy as np
 import pandas as pd
@@ -20,6 +24,14 @@ Label_encoder = preprocessing.LabelEncoder()
 Label_encoder.classes_ = np.load('./cl_classes1307.npy', allow_pickle=True)
 model.load_state_dict(torch.load("../../best_model2306/pytorch_model10d.bin", map_location=device))
 dscr = pd.read_csv("../data/desc.csv", sep=';', names=['id', 'label'], dtype={'id': str, 'label': str})
+addr = 'https://api.tnved.info/api/Search/Search'
+payload = dict()
+
+#parse code description
+def parse(code):
+    payload['query'] = code
+    initReq = requests.post(addr, json=payload)
+    return initReq.json()['resultWithDescription'][0]['description']
 
 #prediction func for one most likely class (argmax)
 def predict_class(text, desc=True):
@@ -56,7 +68,7 @@ def predict_prob_with_descr(text, qtty=5):
     #result = np.array()
     result = list()
     for each in probs:
-        result.append([each, dscr[dscr['id']==each[:4]].iloc[0]['label'], probs[each]])
+        result.append([each, dscr[dscr['id']==each[:4]].iloc[0]['label'], round(probs[each], 3)])
     return result
 	
 app = FastAPI()
@@ -74,4 +86,10 @@ async def sendrq(qtty: str = Form(), desc: str = Form()):
 @app.get("/", response_class=HTMLResponse)
 async def index_page(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+	
+@app.post("/code/")
+async def code(item: Item):
+    return {'data': parse(item.id)}
+	#print('hello')
+	#return {'data': item}
 	

@@ -49,8 +49,9 @@
 </body>
 
 <script>
+
 $(document).ready(function() {
-let table = new DataTable('#example', {order: [[2, 'desc']]});
+let table = new DataTable('#example', {order: [[2, 'desc']], 'columns': [{ "width": "10%" }, null, { "width": "5%" }]});
 const form1  = document.getElementById('sendancor');
 const logs = document.getElementById('logs');
 
@@ -58,6 +59,7 @@ form1.addEventListener('submit', (event) => {
     event.preventDefault();
 	var desc = document.getElementById("desc").value
 	var formData1 = new FormData(form1);
+	console.log(formData1);
 	$.ajax({
         url: 'http://localhost:8000/sendrq/',
         type: 'POST',
@@ -76,8 +78,32 @@ form1.addEventListener('submit', (event) => {
     });
 });
 
+table.on('click', 'tbody tr', function () {
+    let row_data = table.row(this).data();
+    //alert('You clicked on ' + data[0] + "'s row");
+	console.log('request of ' + row_data + ' code;');
+	var code = row_data[0].toString();
+	console.log(code);
+	var data = {"id": code};
+	$.ajax({
+		url: 'http://localhost:8000/code/',
+		type: 'POST',
+		//'data': {id: row_data[0].toString(),},
+		//data: JSON.stringify({"id": row_data[0]}),
+		//dataType: "json",
+		//contentType: "text/plain",
+		dataType : "json",
+		contentType: "application/json; charset=utf-8",
+		data : JSON.stringify(data),
+		success: function (response){
+			console.log(response);
+			alert(response['data']);
+		}
+	});
 });
 
+
+});
 
 </script>
 </html>
