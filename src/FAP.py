@@ -10,7 +10,7 @@ class Item(BaseModel):
     id: str
 
 #import NLP model
-import requests
+import requests, json
 import torch
 import numpy as np
 import pandas as pd
@@ -23,14 +23,16 @@ from sklearn import preprocessing
 Label_encoder = preprocessing.LabelEncoder()
 Label_encoder.classes_ = np.load('./cl_classes1307.npy', allow_pickle=True)
 model.load_state_dict(torch.load("../../best_model2306/pytorch_model10d.bin", map_location=device))
-dscr = pd.read_csv("../data/desc.csv", sep=';', names=['id', 'label'], dtype={'id': str, 'label': str})
+dscr = pd.read_csv("../data/desc10d.csv", sep=';', names=['id', 'label', 'till'], dtype={'id': str, 'label': str, 'till': str})
+dscr['valid'] = dscr['till'].isna()
 addr = 'https://api.tnved.info/api/Search/Search'
-payload = dict()
+
 
 #parse code description
 def parse(code):
-    payload['query'] = code
-    initReq = requests.post(addr, json=payload)
+    payload = json.dumps({"query": code})
+    headers = {'Content-Type': 'application/json'}
+    initReq = requests.request("POST", addr, headers=headers, data=payload)
     return initReq.json()['resultWithDescription'][0]['description']
 
 #prediction func for one most likely class (argmax)
@@ -43,7 +45,7 @@ def predict_class(text, desc=True):
         if desc==True:
             result = dict()
             id = Label_encoder.inverse_transform([predicted_class_id])[0]
-            result[id] = dscr[dscr['id']==id[:4]].iloc[0]['label']
+            result[id] = dscr[dscr['id']==id].iloc[0]['label']
             return result
         else:
             return Label_encoder.inverse_transform([predicted_class_id])[0]
@@ -68,8 +70,19 @@ def predict_prob_with_descr(text, qtty=5):
     #result = np.array()
     result = list()
     for each in probs:
-        result.append([each, dscr[dscr['id']==each[:4]].iloc[0]['label'], round(probs[each], 3)])
+        valid = 1 if dscr[dscr['id']==each].iloc[0]['valid']== True else 0 #result.append([each, dscr[dscr['id']==each].iloc[0]['label'], round(probs[each], 3)])
+        result.append([each, dscr[dscr['id']==each].iloc[0]['label'], round(probs[each], 3), valid])
     return result
+
+#train data
+df = pd.read_csv("../data/mergedcleared0407.csv", sep=';', names=['id', 'label'], dtype={'id': str, 'label': str})
+
+#Function return training data for exact code or group
+def whats_data(id, pandas=False):
+    if pandas == True:
+        return df[df.id.str.slice(start=0, stop=len(str(id)))==str(id)]
+    else:
+        return df[df.id.str.slice(start=0, stop=len(str(id)))==str(id)].to_numpy().tolist()
 	
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -79,8 +92,12 @@ templates = Jinja2Templates(directory="templates")
 async def sendrq(qtty: str = Form(), desc: str = Form()):
     print(desc, qtty)
     response = predict_prob_with_descr(desc, int(qtty))
+    #j_response = ''
+    #for each in response:
+        #j_response = j_response + '["id": "' + each[0] + '", "label": "' + each[1] + '", "prob": ' + str(each[2]) + ', "valid": ' + str(each[3]) + '],'
+    #j_response = j_response + '}'
     print(response)
-    return {"data": response}
+    return {'data': response}
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -90,6 +107,8 @@ async def index_page(request: Request):
 @app.post("/code/")
 async def code(item: Item):
     return {'data': parse(item.id)}
-	#print('hello')
-	#return {'data': item}
+
+@app.post("/whatdata/")
+async def whatdata(item: Item):
+	return {'data': whats_data(item.id)}
 	

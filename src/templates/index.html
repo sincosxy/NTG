@@ -15,7 +15,7 @@
 	<br>
 	<div class='input-group mb-5'>
 	<form id ="sendancor" action='http://localhost:8000/sendrq/' enctype="multipart/form-data" method="post">
-		<h3>Type the goods description here.</h3>
+		<h4>Укажите наименование товара и количество предсказаний</h4>
 		<!--input type="file" name="file" id="file" accept=".jpg"  class="form-control" />
 		<label for="email">Enter your email:</label-->
 		<input type="text" id="desc" name="desc" />
@@ -28,36 +28,74 @@
 
 </div>
 <div class = 'container'>
-<table id="example" class="ui celled table" style="width:100%">
+<table id="example" class="compact table" style="width:100%"><!--ui celled -->
         <thead>
             <tr>
                 <th>Code</th>
                 <th>Desc</th>
                 <th>Prob</th>
+				<th>Till</th>
             </tr>
         </thead>
-        <tfoot>
+        <!--tfoot>
             <tr>
                 <th>Code</th>
                 <th>Desc</th>
                 <th>Prob</th>
             </tr>
-        </tfoot>
+        </tfoot-->
     </table>
+</div><br><hr class="hr" />
+<div class = 'container'>
+	<div class='input-group mb-5'>
+	<form id ="whatdata" action='http://localhost:8000/whatdata/' enctype="multipart/form-data" method="post">
+		<h4>Укажите код или группу, чтобы посмотреть обучающую выборку</h4>
+		<br>
+		<!--input type="file" name="file" id="file" accept=".jpg"  class="form-control" />
+		<label for="email">Enter your email:</label-->
+		<input type="text" id="whatreq" name="whatreq" />
+		<!--input type="number" id="qtty" name="qtty" min='1' max='20' value='5' /-->
+		<input type="submit" class="btn btn-primary" />
+	</form>
+	</div>
 </div>
 
+<div class = 'container'>
+<table id="example2" class="ui celled table" style="width:100%">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Desc</th>
+            </tr>
+        </thead>
+    </table>
+</div>
+<br><br><br>
 </body>
 
 <script>
 
 $(document).ready(function() {
-let table = new DataTable('#example', {order: [[2, 'desc']], 'columns': [{ "width": "10%" }, null, { "width": "5%" }]});
+let table = new DataTable('#example', {
+	order: [[2, 'desc']],
+	columns: [{ "width": "10%" }, null, { "width": "5%" }, { "width": "10%" }],
+	columnDefs: [{target: 3, visible: false}],
+	"createdRow": function( row, data, dataIndex){
+		if( data[3] == 0){
+			console.log(data);
+			$(row).addClass('bg-danger');
+		}
+	}
+});
+let table2 = new DataTable('#example2', {'columns':[{'width': '10%'}, null]});
 const form1  = document.getElementById('sendancor');
+const form2 = document.getElementById('whatdata');
 const logs = document.getElementById('logs');
 
 form1.addEventListener('submit', (event) => {
     event.preventDefault();
 	var desc = document.getElementById("desc").value
+	
 	var formData1 = new FormData(form1);
 	console.log(formData1);
 	$.ajax({
@@ -73,11 +111,19 @@ form1.addEventListener('submit', (event) => {
 			console.log(response);
 			console.log(JSON.stringify(response));
 			let data = JSON.stringify(response);
-			$('#example').DataTable().clear().rows.add(response['data']).draw();
+			//$('#example').DataTable().clear().rows.add(response['data']).draw();
+			table.clear().rows.add(response['data']).draw();
         }
     });
 });
-
+form2.addEventListener('submit', (event) => {
+	event.preventDefault();
+	var whatreq = document.getElementById("whatreq").value
+	var formData2 = new FormData(form2);
+	console.log(whatreq);
+	getTrainData(whatreq);
+	
+});
 table.on('click', 'tbody tr', function () {
     let row_data = table.row(this).data();
     //alert('You clicked on ' + data[0] + "'s row");
@@ -85,13 +131,10 @@ table.on('click', 'tbody tr', function () {
 	var code = row_data[0].toString();
 	console.log(code);
 	var data = {"id": code};
-	$.ajax({
+	getTrainData(code);
+	/*$.ajax({
 		url: 'http://localhost:8000/code/',
 		type: 'POST',
-		//'data': {id: row_data[0].toString(),},
-		//data: JSON.stringify({"id": row_data[0]}),
-		//dataType: "json",
-		//contentType: "text/plain",
 		dataType : "json",
 		contentType: "application/json; charset=utf-8",
 		data : JSON.stringify(data),
@@ -99,11 +142,30 @@ table.on('click', 'tbody tr', function () {
 			console.log(response);
 			alert(response['data']);
 		}
+	});*/
+});
+
+
+
+
+function getTrainData(id){
+	var data = {"id": id};
+	$.ajax({
+		url: 'http://localhost:8000/whatdata/',
+		type: 'POST',
+		dataType : "json",
+		contentType: "application/json; charset=utf-8",
+		data : JSON.stringify(data),
+		success: function (response){
+			console.log(response);
+			//alert(response['data']);
+			let data = JSON.stringify(response);
+			//$('#example2').DataTable().clear().rows.add(response['data']).draw();
+			table2.clear().rows.add(response['data']).draw();
+		}
 	});
+}
+
 });
-
-
-});
-
 </script>
 </html>
